@@ -5,6 +5,7 @@ from groq import Groq
 from dotenv import load_dotenv
 import json
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
@@ -15,6 +16,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Serve frontend build (if present). This mounts the React build folder so the
+# frontend static files are served at the root URL. Ensure the frontend has
+# been built (`npm run build`) so `../frontend/build` exists relative to the
+# backend folder.
+# NOTE: The static mount is registered after API routes below so that
+# API endpoints (e.g. /chat, /reset) take precedence. The actual mount
+# call is appended to the bottom of this file.
 
 
 # Load API Key
@@ -45,9 +55,12 @@ class ChatRequest(BaseModel):
     message: str
 
 
-@app.get("/")
-def read_root():
-    return {"message": "AI Chatbot is running"}
+@app.get("/api/health")
+def read_health():
+    """Health endpoint for the API. Moved off `/` so the frontend static
+    files mounted at `/` can be served by StaticFiles.
+    """
+    return {"message": "AI Chatbot API is running"}
     
 @app.post("/chat")
 async def chat(req: ChatRequest):
@@ -94,3 +107,9 @@ async def reset_memory():
         return {"ok": True, "message": "memory reset"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# Serve frontend build (if present). Mount this after routes so API endpoints
+# respond first. Ensure the frontend has been built (`npm run build`) so
+# `../frontend/build` exists relative to the backend folder.
+app.mount("/", StaticFiles(directory="../frontend/build", html=True), name="frontend")
