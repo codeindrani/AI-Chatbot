@@ -28,6 +28,7 @@ client = Groq(api_key=GROQ_API_KEY)
 # Memory file
 MEMORY_FILE = "memory.json"
 
+
 def load_memory():
     if not os.path.exists(MEMORY_FILE):
         return []
@@ -44,6 +45,10 @@ class ChatRequest(BaseModel):
     message: str
 
 
+@app.get("/")
+def read_root():
+    return {"message": "AI Chatbot is running"}
+    
 @app.post("/chat")
 async def chat(req: ChatRequest):
     try:
