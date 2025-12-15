@@ -1,0 +1,91 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+import os
+from groq import Groq
+from dotenv import load_dotenv
+import json
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Load API Key
+load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Initialize client
+client = Groq(api_key=GROQ_API_KEY)
+
+
+# Memory file
+MEMORY_FILE = "memory.json"
+
+def load_memory():
+    if not os.path.exists(MEMORY_FILE):
+        return []
+    with open(MEMORY_FILE, "r") as f:
+        return json.load(f)
+
+def save_memory(messages):
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(messages, f, indent=4)
+
+
+# Request body
+class ChatRequest(BaseModel):
+    message: str
+
+
+@app.post("/chat")
+async def chat(req: ChatRequest):
+    try:
+        # Load old memory
+        memory = load_memory()
+
+        # Add user message
+        memory.append({"role": "user", "content": req.message})
+
+        # Keep last 10
+        memory = memory[-10:]
+
+        # Call Groq API
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=memory
+        )
+
+        # FIX: Correct way to get content
+        reply = completion.choices[0].message.content
+
+        # Add assistant response to memory
+        memory.append({"role": "assistant", "content": reply})
+        save_memory(memory)
+
+        return {"response": reply}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/reset")
+async def reset_memory():
+    """Reset the conversation memory by truncating the memory file to an empty list.
+
+    This endpoint is intentionally simple and unauthenticated because the
+    frontend calls it on mount to ensure each page refresh starts a fresh chat.
+    If you deploy publicly, consider adding authentication or removing this
+    behavior.
+    """
+    try:
+        save_memory([])
+        return {"ok": True, "message": "memory reset"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
