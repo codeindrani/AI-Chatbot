@@ -112,4 +112,4 @@ async def reset_memory():
 # Serve frontend build (if present). Mount this after routes so API endpoints
 # respond first. Ensure the frontend has been built (`npm run build`) so
 # `../frontend/build` exists relative to the backend folder.
-app.mount("/", StaticFiles(directory="../frontend/build", html=True), name="frontend")
+app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
