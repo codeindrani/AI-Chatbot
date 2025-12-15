@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import json
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import logging
 
 app = FastAPI()
 
@@ -110,6 +111,20 @@ async def reset_memory():
 
 
 # Serve frontend build (if present). Mount this after routes so API endpoints
-# respond first. Ensure the frontend has been built (`npm run build`) so
-# `../frontend/build` exists relative to the backend folder.
-app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
+# respond first. We compute the build directory relative to this file and
+# only mount it if it exists to avoid a RuntimeError when running without a
+# built frontend (for example during development).
+logger = logging.getLogger("uvicorn.error")
+
+base_dir = os.path.dirname(__file__)
+# build_dir points to the frontend build folder relative to the backend
+build_dir = os.path.normpath(os.path.join(base_dir, "..", "frontend", "build"))
+
+if os.path.isdir(build_dir):
+    app.mount("/", StaticFiles(directory=build_dir, html=True), name="frontend")
+    logger.info(f"Serving frontend from: {build_dir}")
+else:
+    logger.warning(
+        "Frontend build directory not found: '%s'. Run 'npm run build' in the frontend folder or start the frontend dev server separately.",
+        build_dir,
+    )
