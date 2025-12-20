@@ -116,15 +116,14 @@ async def reset_memory():
 # built frontend (for example during development).
 logger = logging.getLogger("uvicorn.error")
 
-base_dir = os.path.dirname(__file__)
-# build_dir points to the frontend build folder relative to the backend
-build_dir = os.path.normpath(os.path.join(base_dir, "..", "frontend", "build"))
+# Use absolute path to ensure frontend build is found on Render
+build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "build"))
 
 if os.path.isdir(build_dir):
     app.mount("/", StaticFiles(directory=build_dir, html=True), name="frontend")
     logger.info(f"Serving frontend from: {build_dir}")
 else:
     logger.warning(
-        "Frontend build directory not found: '%s'. Run 'npm run build' in the frontend folder or start the frontend dev server separately.",
+        "Frontend build directory not found: '%s'. Make sure 'npm run build' was run in the frontend folder.",
         build_dir,
     )
